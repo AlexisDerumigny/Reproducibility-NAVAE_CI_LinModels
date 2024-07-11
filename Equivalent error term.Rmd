@@ -46,7 +46,7 @@ ggplot(df) +
 # x-axis is a
 # y-axis is rho
 
-rhomax = 0.6
+rhomax = 0.4
 
 f <- function()
 {plot(x = rep(2/11, 2), y = c(0, rhomax), xlim = c(0, 2/3), type = "l",
@@ -72,7 +72,7 @@ lines(x = rep(2/11, 2), y = c(0, rhomax))
 
 # first interval
 lines(x = rep(1/5, 2), y = c(0, rhomax))
-text(labels = "n^-a", x = 0.1, y = rhomax * 0.5)
+text(labels = "n^{-a}", x = 0.1, y = rhomax * 0.5)
 
 # second interval
 lines(x = rep(1/2, 2), y = c(0, rhomax))
@@ -82,11 +82,11 @@ lines(x = c(2/11, 1/5), y = 1/4 - 3 * c(2/11, 1/5) / 8)
 
 # third interval
 lines(x = c(1/5, 1/2), y = 1/4 - 3 * c(1/5, 1/2) / 8)
-text(labels = "n^{-1/4 + 3a/8}", x = 0.35, y = 0.03)
+text(labels = "n^{-1/4 + 3a/8}", x = 0.35, y = 0.05)
 text(labels = "ln(n) n^{-rho}", x = 0.35, y = 0.158, 
-     adj = 0, srt = -25, pos = 1)
+     adj = 0, srt = -15, pos = 1)
 lines(x = c(1/5, 1/2), y = 1/4 - c(1/5, 1/2) / 4)
-text(labels = "n^{-1/4 + a/4}", x = 0.35, y = rhomax * 0.5)
+text(labels = "n^{-1/4 + a/4}", x = 0.35, y = 0.3)
 # fourth interval
 lines(x = c(1/2, 2/3), y = 1/2 - 3 * c(1/2, 2/3) / 4)
 lines(x = c(1/2, 2/3), y = 1/4 - 3 * c(1/2, 2/3) / 8)
@@ -107,9 +107,7 @@ f()
 # x-axis is a
 # y-axis is rho
 
-rhomax = 0.6
-
-pdf("error_regimes.pdf", width = 10, height = 8)
+pdf("error_regimes.pdf", width = 8, height = 6)
 
 f()
 
