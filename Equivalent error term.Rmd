@@ -14,7 +14,7 @@ library(tidyverse)
 
 
 ```{r}
-vec_a = seq(0, 3/2, by = 0.1)
+vec_a = seq(0, 2/3, by = 0.1)
 
 df = data.frame(
   a = vec_a,
