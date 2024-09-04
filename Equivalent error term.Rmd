@@ -42,7 +42,7 @@ ggplot(df) +
 
 
 
-```{r, fig.height=8}
+```{r, fig.width = 8, fig.height = 6}
 # x-axis is a
 # y-axis is rho
 
@@ -50,7 +50,14 @@ rhomax = 0.4
 
 f <- function()
 {plot(x = rep(2/11, 2), y = c(0, rhomax), xlim = c(0, 2/3), type = "l",
-     xlab = "a", ylab = "rho", yaxs='i', xaxs='i')
+     xlab = "a", ylab = "rho", xaxs='i', yaxs='i', xaxt='n')
+axis(side = 1, at = c(0, 0.1, 2/11, 0.2, 0.3, 0.4, 0.5, 0.6, 2/3),
+     labels = c("0", "0.1", "", "", "0.3", "0.4", "0.5", "0.6", "2/3"))
+
+# Trick: put the labels in a separate command so that they can be put slightly
+# off, so that they do not overlap.
+axis(side = 1, at = 0.175, labels = "2/11", tick = FALSE)
+axis(side = 1, at = 0.21, labels = "0.2", tick = FALSE)
 
 # Coloring polygons
 polygon(x = c(0, 2/11, 2/11, 1/5,    1/5,      0),
