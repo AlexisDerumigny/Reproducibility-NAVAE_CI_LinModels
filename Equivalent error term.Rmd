@@ -50,14 +50,26 @@ rhomax = 0.4
 
 f <- function()
 {plot(x = rep(2/11, 2), y = c(0, rhomax), xlim = c(0, 2/3), type = "l",
-     xlab = "a", ylab = "rho", xaxs='i', yaxs='i', xaxt='n')
-axis(side = 1, at = c(0, 0.1, 2/11, 0.2, 0.3, 0.4, 0.5, 0.6, 2/3),
-     labels = c("0", "0.1", "", "", "0.3", "0.4", "0.5", "0.6", "2/3"))
+     xlab = "a", ylab = "rhotilde",
+     xaxs='i', yaxs='i',  # Do not extend x,y axis beyond the xlim, ylim
+     xaxt='n', yaxt='n'   # Do not draw axis
+)
+  
+# Adding x axis
+axis(side = 1,
+     at     = c( 0 ,  0.1 , 2/11, 0.2,  0.3 ,  0.4 ,  0.5 ,  0.6 ,  2/3 ),
+     labels = c("0", "0.1",  "" , "" , "0.3", "0.4", "0.5", "0.6", "2/3") )
 
 # Trick: put the labels in a separate command so that they can be put slightly
 # off, so that they do not overlap.
 axis(side = 1, at = 0.175, labels = "2/11", tick = FALSE)
 axis(side = 1, at = 0.21, labels = "0.2", tick = FALSE)
+
+# Adding y axis
+axis(side = 2,
+     las  = 1,    # Always horizontal labels
+     at     = c( 0 ,  0.1 ,  1/8 ,  2/11 ,  0.2 ,  0.3 ,  0.4 ),
+     labels = c("0", "0.1", "1/8", "2/11", "0.2", "0.3", "0.4") )
 
 # Coloring polygons
 polygon(x = c(0, 2/11, 2/11, 1/5,    1/5,      0),
@@ -79,7 +91,7 @@ lines(x = rep(2/11, 2), y = c(0, rhomax))
 
 # first interval
 lines(x = rep(1/5, 2), y = c(0, rhomax))
-text(labels = "n^{-a}", x = 0.1, y = rhomax * 0.5)
+text(labels = "n^{-a}", x = 0.1, y = rhomax * 0.7)
 
 # second interval
 lines(x = rep(1/2, 2), y = c(0, rhomax))
@@ -90,7 +102,7 @@ lines(x = c(2/11, 1/5), y = 1/4 - 3 * c(2/11, 1/5) / 8)
 # third interval
 lines(x = c(1/5, 1/2), y = 1/4 - 3 * c(1/5, 1/2) / 8)
 text(labels = "n^{-1/4 + 3a/8}", x = 0.35, y = 0.05)
-text(labels = "ln(n) n^{-rho}", x = 0.35, y = 0.158, 
+text(labels = "ln(n) n^{-rho}", x = 0.338, y = 0.162, 
      adj = 0, srt = -15, pos = 1)
 lines(x = c(1/5, 1/2), y = 1/4 - c(1/5, 1/2) / 4)
 text(labels = "n^{-1/4 + a/4}", x = 0.35, y = 0.3)
@@ -104,6 +116,13 @@ lines(x = c(1/2, 2/3), y = 1/4 - 3 * c(1/2, 2/3) / 8)
 # Drawing again the box around
 polygon(c(0, 2/3, 2/3, 0),
         c(0, 0, rhomax, rhomax))
+
+
+# Drawing dashed lines for the y-axis
+lines(x = c(0, 2/3), y = c(0.2, 0.2), lty = 2)
+lines(x = c(0, 2/3), y = c(2/11, 2/11), lty = 2)
+lines(x = c(0, 2/3), y = c(1/8, 1/8), lty = 2)
+
 }
 
 f()
