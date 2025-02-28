@@ -1,19 +1,19 @@
 #' Script for simulations NAVAE CI case of a mean/expectation
 #' 
 #' 
-#' 
 
 #==============================================================================#
 # Paths ----------
 #==============================================================================#
 
-# Temp (after a package), path to the R code for the CI
+# Temp (later, a package), path to the R code for the CI
 
 # Select the correct path to main folder depending on user/setting
 # Setting: CREST, Lucas's computer
 # path_dropbox <- file.path("C:/Temp/Dropbox")
 # Setting: personal computer (Lucas)
 path_dropbox <- file.path("/Users/lucasgirard/Dropbox")
+
 path_lib_code <- file.path(path_dropbox, "finite_CI_perso", "NavaeCI", "R")
 
 path_res_simu <- file.path(path_dropbox, "finite_CI_perso", "Reproducibility-NAVAE_CI_LinModels", "res_simu")
@@ -152,14 +152,15 @@ param_BE_EE = list(
   eps = 0.1)
 
 # Number of MC repetitions
-M <- 1000
+M <- 5000
 
 # To monitor evolution
 nb_simu_to_monitor <- 100
 
 # Choice of the different sample sizes
-vec_n <- c(1, 5, 10, 50, 100, 200) * 10^3
+vec_n <- c(0.5, 1, 5, 10, 50, 100, 200, 0.5) * 10^3
 # vec_n <- c(1, 5) * 10^3 # to test 
+# vec_n <- 0.5 * 10^3
 
 set.seed(1)
 

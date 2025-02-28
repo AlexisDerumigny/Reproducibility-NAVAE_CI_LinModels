@@ -5,7 +5,7 @@
 # Paths ----------
 #==============================================================================#
 
-# Temp (after a package), path to the R code for the CI
+# Temp (later, a package), path to the R code for the CI
 
 # Select the correct path to main folder depending on user/setting
 # Setting: CREST, Lucas's computer
@@ -13,6 +13,7 @@
 # Setting: personal computer (Lucas)
 path_dropbox <- file.path("/Users/lucasgirard/Dropbox")
 
+path_lib_code <- file.path(path_dropbox, "finite_CI_perso", "NavaeCI", "R")
 path_res_simu <- file.path(path_dropbox, "finite_CI_perso", "Reproducibility-NAVAE_CI_LinModels", "res_simu")
 
 #==============================================================================#
@@ -24,13 +25,30 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
+source(file.path(path_lib_code, "CI_mean.R"))
+
 #==============================================================================#
 # Temp tests ----------
 #==============================================================================#
 
 # Test for the sample size to exit R regime
-n <- 100 * 10^3
+
 alpha <- 0.1
+
+# Choice DGP - i.i.d Exponential with expectation theta1 (set to 1).
+theta1 <- 1
+draw_data <- function(n){rexp(n, rate = 1/theta1)}
+
+# Choice hyper-parameters
+power_of_n_for_b <- -1/5
+param_BE_EE = list(
+  choice = "best",
+  setup = list(continuity = FALSE, iid = TRUE, no_skewness = FALSE),
+  regularity = list(C0 = 1, p = 2),
+  eps = 0.1)
+
+n <- 0.5 * 10^3
+
 res_ci_Kp <- Navae_ci_mean(data = draw_data(n), alpha = alpha,
                            a = NULL, power_of_n_for_b = power_of_n_for_b,
                            bound_K = NULL, param_BE_EE = param_BE_EE, verbose = TRUE)
@@ -47,8 +65,8 @@ res_ci_K9
 # Load result
 theta1 <- 1
 power_of_n_for_b <- -1/5
-M <- 1000
-vec_n <- c(1, 5, 10, 50, 100, 200) * 10^3
+M <- 5000 # 1000
+vec_n <- c(0.5, 1, 5, 10, 50, 100, 200) * 10^3
 
 res_over_n <- NULL
 for (n in vec_n) {
@@ -114,8 +132,8 @@ minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)
 
 alpha_studied <- 0.1
 
-bound_K_method_studied <- "plug-in"
-# bound_K_method_studied <- "bound"
+# bound_K_method_studied <- "plug-in"
+bound_K_method_studied <- "bound"
 
 coverage <- 
   res_over_n %>% 
@@ -124,6 +142,9 @@ coverage <-
   dplyr::group_by(sample_size_n) %>%
   dplyr::summarise(mean(coverage), mean(coverage_CLT))
 coverage
+
+coverage$`mean(coverage)`
+coverage$`mean(coverage_CLT)`
 
 #==============================================================================#
 # Graph lengths ----------
