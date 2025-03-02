@@ -152,17 +152,18 @@ param_BE_EE = list(
   eps = 0.1)
 
 # Number of MC repetitions
-M <- 5000
+M <- 10000
 
 # To monitor evolution
 nb_simu_to_monitor <- 100
 
 # Choice of the different sample sizes
-vec_n <- c(0.5, 1, 5, 10, 50, 100, 200, 0.5) * 10^3
+vec_n <- c(0.5, 1, 5, 10, 50, 100, 200) * 10^3
 # vec_n <- c(1, 5) * 10^3 # to test 
 # vec_n <- 0.5 * 10^3
 
-set.seed(1)
+seed_used <- 42
+set.seed(seed_used)
 
 for(i_n in seq_along(vec_n)) {
   

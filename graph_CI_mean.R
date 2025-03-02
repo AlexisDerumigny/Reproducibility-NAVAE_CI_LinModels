@@ -15,6 +15,7 @@ path_dropbox <- file.path("/Users/lucasgirard/Dropbox")
 
 path_lib_code <- file.path(path_dropbox, "finite_CI_perso", "NavaeCI", "R")
 path_res_simu <- file.path(path_dropbox, "finite_CI_perso", "Reproducibility-NAVAE_CI_LinModels", "res_simu")
+path_figures <- file.path(path_dropbox, "finite_CI_perso", "Reproducibility-NAVAE_CI_LinModels", "figures")
 
 #==============================================================================#
 # Libraries and lib files ----------
@@ -24,8 +25,18 @@ library(purrr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(scales)
 
 source(file.path(path_lib_code, "CI_mean.R"))
+
+#==============================================================================#
+# Settings for exporting figures in Latex --------------------------------------
+#==============================================================================#
+
+size_theme_element_text <- 14
+
+width_export_pdf_file <- 6
+height_export_pdf_file <- 4.5
 
 #==============================================================================#
 # Temp tests ----------
@@ -65,7 +76,7 @@ res_ci_K9
 # Load result
 theta1 <- 1
 power_of_n_for_b <- -1/5
-M <- 5000 # 1000
+M <- 10000 # 1000, 5000
 vec_n <- c(0.5, 1, 5, 10, 50, 100, 200) * 10^3
 
 res_over_n <- NULL
@@ -85,7 +96,7 @@ for (n in vec_n) {
     res_over_n <- rbind(res_over_n, res_for_n)
   }
 }
-
+rm(res_for_n)
 colnames(res_over_n)
 
 #==============================================================================#
@@ -126,6 +137,10 @@ minimal_alpha_to_exit_R_regime_K9_bis$`mean(minimal_alpha_to_exit_R_regime)`
 minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`
 minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`
 
+# To copy-paste in Latex (then, keep three digits a la mano)
+paste0(minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`, collapse = " & ")
+paste0(minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`, collapse = " & ")
+
 #==============================================================================#
 # Coverage ----------
 #==============================================================================#
@@ -141,17 +156,21 @@ coverage <-
   dplyr::filter(alpha == alpha_studied) %>%
   dplyr::group_by(sample_size_n) %>%
   dplyr::summarise(mean(coverage), mean(coverage_CLT))
-coverage
 
+coverage
 coverage$`mean(coverage)`
 coverage$`mean(coverage_CLT)`
 
+# To copy-paste in Latex (then, keep three digits a la mano)
+paste0(coverage$`mean(coverage)`, collapse = " & ")
+paste0(coverage$`mean(coverage_CLT)`, collapse = " & ")
+
 #==============================================================================#
-# Graph lengths ----------
+# Graph absolute lengths -------------------------------------------------------
 #==============================================================================#
 
 alpha_studied <- 0.1
-bound_K_method_studied <- "plug-in"
+# bound_K_method_studied <- "plug-in"
 bound_K_method_studied <- "bound"
 
 # Without changing the Inf into NA (to be removed from the average)
@@ -203,6 +222,94 @@ g_abs_length_K9 <- ggplot(data = df_absolute_length_K9,
   ylab(paste0("CI length (mean over ", M, " repetitions)"))
 
 g_abs_length_K9
+
+
+
+g_abs_length_K9_for_latex <- ggplot(data = df_absolute_length_K9,
+                                    aes(x = n, y = Absolute_length, linetype = CI)) +
+  geom_line() + xlab(element_blank()) + ylab(element_blank()) +
+  scale_linetype(guide = 'none') +
+  theme(axis.text = element_text(size = size_theme_element_text)) +
+  scale_x_continuous(labels = label_number(scale = 1e-3, suffix = "k"))
+g_abs_length_K9_for_latex
+
+figure_filename <- paste0("fig_absolute_length",
+                          "_alpha_", alpha_studied,
+                          "_K_", bound_K_method_studied,
+                          "_b_", power_of_n_for_b,
+                          "_M_", M,
+                          ".pdf")
+pdf(file = file.path(path_figures, figure_filename), 
+    width = width_export_pdf_file, height = height_export_pdf_file)
+print(g_abs_length_K9_for_latex)
+dev.off()
+
+#==============================================================================#
+# Graph relative length, fixed bound K -----------------------------------------
+#==============================================================================#
+
+# Note: when K and a_n are fixed independent of the data, the ratio of length
+# is deterministic (absolute lenghts are, on the contrary, data-dependent
+# through the empirical variance, but that term cancels out in the ratio).
+
+# Wrapper function to recover ratio of length
+Get_relative_length_when_data_independent <- function(
+    n, alpha = 0.05, a = NULL, power_of_n_for_b = NULL, bound_K = NULL,
+    param_BE_EE = list(
+      choice = "best",
+      setup = list(continuity = FALSE, iid = TRUE, no_skewness = FALSE),
+      regularity = list(C0 = 1, p = 2),
+      eps = 0.1))
+{
+  res_navae_ci_mean <- Navae_ci_mean(
+    data = rexp(n = n), # Fake data, just to use the function and with size n
+    alpha = alpha, a = a, power_of_n_for_b = power_of_n_for_b,
+    bound_K = bound_K, param_BE_EE = param_BE_EE, verbose = TRUE)
+  
+  return(res_navae_ci_mean$ratio_length_wrt_CLT)
+}
+
+alpha_studied <- 0.1
+power_of_n_for_b <- -1/5
+bound_K <- 9
+
+Get_relative_length_when_data_independent_for_sapply <- function(n)
+{
+  Get_relative_length_when_data_independent(
+    n, alpha = alpha_studied, a = NULL, power_of_n_for_b = power_of_n_for_b, 
+    bound_K = bound_K,
+    param_BE_EE = list(
+      choice = "best",
+      setup = list(continuity = FALSE, iid = TRUE, no_skewness = FALSE),
+      regularity = list(C0 = 1, p = 2),
+      eps = 0.1))
+}
+
+grid_n <- seq(from = 5000, to = 200000, by = 100)
+values <- sapply(grid_n, FUN = Get_relative_length_when_data_independent_for_sapply)
+# Silly in terms of computing in the sense that we need only n, not the sample but remains a few seconds!
+df_relative_length_K9 <- data.frame(
+  n = grid_n, relative_length = values)
+
+g_rel_length_K9_for_latex <- ggplot(data = df_relative_length_K9,
+                                    aes(x = n, y = relative_length)) +
+  geom_line() + xlab(element_blank()) + ylab(element_blank()) +
+  geom_hline(yintercept = 1, linetype = "blank") +
+  theme(axis.text=element_text(size = size_theme_element_text))  +
+  scale_x_continuous(labels = label_number(scale = 1e-3, suffix = "k"))
+g_rel_length_K9_for_latex
+
+figure_filename <- paste0("fig_relative_length",
+                          "_alpha_", alpha_studied,
+                          "_K_", bound_K_method_studied,
+                          "_b_", power_of_n_for_b,
+                          ".pdf")
+pdf(file = file.path(path_figures, figure_filename), 
+    width = width_export_pdf_file, height = height_export_pdf_file)
+print(g_rel_length_K9_for_latex)
+dev.off()
+
+
 
 # Graph relative length
 
