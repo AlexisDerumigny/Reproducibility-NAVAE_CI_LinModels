@@ -76,17 +76,16 @@ res_ci_K9
 # Load result
 theta1 <- 1
 power_of_n_for_b <- -1/5
-M <- 10000 # 1000, 5000
+M <- 1000 # 1000, 5000
 vec_n <- c(0.5, 1, 5, 10, 50, 100, 200) * 10^3
+
+optimize_in_a = TRUE
+known_variance = NULL
 
 res_over_n <- NULL
 for (n in vec_n) {
-  filename <- paste0("res_simu",
-                     "_rexp_", theta1,
-                     "_powerb_", power_of_n_for_b,
-                     "_M_", M,
-                     "_n_in_k_", n/10^3,
-                     ".rds")
+  filename <- Get_filename(
+    optimize_in_a, known_variance, theta1, power_of_n_for_b, M, n)
   
   res_for_n <- readRDS(file = file.path(path_res_simu, filename))
   
