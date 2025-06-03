@@ -35,10 +35,10 @@ library(dplyr)
 #==============================================================================#
 
 Perform_one_simu_for_given_n <- function(
-  n, optimize_in_a = FALSE, known_variance = NULL)
+    n, known_variance = NULL)
 {
   
-  # With an arbitrary alpha, with verbose = TRUE, to recover various informations
+  # With an arbitrary alpha, with verbose = TRUE, to recover various information
   # using either K = 9 or plug-in, that does not depend on the particular sample
   drawn_data <- draw_data(n) # so we just draw a sample here
   res_ci_K9 <- Navae_ci_mean(data = drawn_data, alpha = 0.42,
@@ -52,7 +52,7 @@ Perform_one_simu_for_given_n <- function(
   # That value is independent of data, of except sample size n of course
   alpha_to_exit_R_K9 <- res_ci_K9$minimal_alpha_to_exit_R_regime
   # Round and add a bit just to be able to compute ci not R it with K = 9 and have
-  # some change to compute ci not R regime with plug-in K.
+  # some chance to compute ci not R regime with plug-in K.
   min_alpha_used <- min(0.99, ceiling(100*alpha_to_exit_R_K9)/100)
   add_to_min_alpha_used <- 0.03
   
@@ -69,7 +69,6 @@ Perform_one_simu_for_given_n <- function(
   res <- purrr::reduce(
     purrr::map(1:M, Perform_one_simu_for_given_n_across_alpha,
                vec_alpha_used = vec_alpha_used, n = n,
-               optimize_in_a = optimize_in_a,
                known_variance = known_variance), 
     rbind)
   
@@ -80,8 +79,8 @@ Perform_one_simu_for_given_n <- function(
 }
 
 Perform_one_simu_for_given_n_across_alpha <- function(
-  simu_number, vec_alpha_used, n,
-  optimize_in_a = FALSE, known_variance = NULL)
+    simu_number, vec_alpha_used, n,
+    known_variance = NULL)
 {
   if (simu_number %% nb_simu_to_monitor == 0) {
     print(paste("Start of simulation number:", simu_number))
@@ -90,9 +89,8 @@ Perform_one_simu_for_given_n_across_alpha <- function(
   drawn_data <- draw_data(n) # NB: the same sample is used for the different alphas
   
   list_res_across_alpha <- purrr::map(vec_alpha_used, 
-                                      Compute_ci_for_given_alpha_and_data, 
+                                      Compute_ci_for_given_alpha_and_data_w_and_wo_optim, 
                                       drawn_data = drawn_data,
-                                      optimize_in_a = optimize_in_a,
                                       known_variance = known_variance)
   res_across_alpha <- purrr::reduce(list_res_across_alpha, rbind)
   res_across_alpha$simu_number <- simu_number
@@ -100,8 +98,21 @@ Perform_one_simu_for_given_n_across_alpha <- function(
   return(res_across_alpha)
 }
 
+Compute_ci_for_given_alpha_and_data_w_and_wo_optim <- function(
+    alpha, drawn_data, known_variance = NULL)
+{
+  
+  res_opt0 <- Compute_ci_for_given_alpha_and_data(
+    alpha = alpha, drawn_data = drawn_data, optimize_in_a = FALSE, known_variance = known_variance)
+  
+  res_opt1 <- Compute_ci_for_given_alpha_and_data(
+    alpha = alpha, drawn_data = drawn_data, optimize_in_a = TRUE, known_variance = known_variance)
+  
+  return(rbind(res_opt0, res_opt1))
+}
+
 Compute_ci_for_given_alpha_and_data <- function(
-  alpha, drawn_data, optimize_in_a = FALSE, known_variance = NULL)
+    alpha, drawn_data, optimize_in_a = FALSE, known_variance = NULL)
 {
   
   res_ci_K9 <- Navae_ci_mean(data = drawn_data, alpha = alpha,
@@ -162,13 +173,11 @@ param_BE_EE = list(
   regularity = list(C0 = 1, p = 2),
   eps = 0.1)
 
-optimize_in_a = TRUE
-
 known_variance = NULL
 
 # Number of MC repetitions
-# M <- 10000
-M <- 1000
+M <- 10000
+# M <- 5000
 
 # To monitor evolution
 nb_simu_to_monitor <- 100
@@ -180,8 +189,16 @@ vec_n <- c(0.5, 1, 5, 10, 50, 100, 200) * 10^3
 
 # Function for filename
 Get_filename <- function(
-  optimize_in_a, known_variance, theta1, power_of_n_for_b, M, n)
+    known_variance, theta1, power_of_n_for_b, M, n)
 {
+  
+  return(paste0("res_simu",
+                "_rexp_", theta1,
+                "_not_and_optimized_in_a",
+                "_powerb_", power_of_n_for_b,
+                "_M_", M,
+                "_n_in_k_", n/10^3,
+                ".rds"))
   
   if (optimize_in_a) {
     return(paste0("res_simu",
@@ -201,7 +218,7 @@ Get_filename <- function(
                   "_n_in_k_", n/10^3,
                   ".rds"))
   }
-
+  
   if (isFALSE(optimize_in_a) && is.null(known_variance)) {
     return(paste0("res_simu",
                   "_rexp_", theta1,
@@ -222,10 +239,10 @@ for (i_n in seq_along(vec_n)) {
   print(paste("Start of simu for n =", n, "-", Sys.time()))
   
   filename <- Get_filename(
-    optimize_in_a, known_variance, theta1, power_of_n_for_b, M, n)
+    known_variance, theta1, power_of_n_for_b, M, n)
   
   res_for_n <- Perform_one_simu_for_given_n(
-    n = n, optimize_in_a = optimize_in_a, known_variance = known_variance)
+    n = n, known_variance = known_variance)
   
   saveRDS(object = res_for_n,
           file = file.path(path_res_simu, filename))
