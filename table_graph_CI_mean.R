@@ -162,6 +162,7 @@ table_minimal_alpha_to_exit_R_regime <-
                 with_plug_in_median =
                   minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`)
 
+# Compute the mininal alpha to exit R regime using optimized a and bound K = 9
 # Table minimal alpha (one table only, not automated export to tex)
 table_minimal_alpha_to_exit_R_regime
 
