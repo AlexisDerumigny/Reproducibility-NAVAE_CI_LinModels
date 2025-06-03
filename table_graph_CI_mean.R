@@ -104,7 +104,7 @@ View(res_over_n)
 # For both w and wo optimization in a #
 #==============================================================================#
 
-# Separate the two cases
+# Separate the two cases and choose with or without optimization
 res_over_n_w_and_wo_optim_in_a <- res_over_n
 
 res_over_n <- res_over_n_w_and_wo_optim_in_a %>%
@@ -115,8 +115,17 @@ res_over_n <- res_over_n_w_and_wo_optim_in_a %>%
 
 
 #==============================================================================#
-# Table: minimal alpha to exit R regime ----------
+# Table: minimal alpha to exit R regime ----------------------------------------
 #==============================================================================#
+
+#' Select with or without optimization.
+#' Rather without optimization is shown in the paper since the optimized a
+#' tries to minimize the width, which contradicts the objective of exiting 
+#' the R regime to be informative.
+
+optimized_a_is_used_studied <- FALSE
+res_over_n <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(optimized_a_is_used == optimized_a_is_used_studied)
 
 minimal_alpha_to_exit_R_regime_K9 <- 
   unique(res_over_n %>% 
@@ -144,41 +153,62 @@ minimal_alpha_to_exit_R_regime_Kp_median <-
 mean(c(1,2)) == mean(c(1, 1, 2, 2))
 median(c(1,2)) == median(c(1, 1, 2, 2))
 
-minimal_alpha_to_exit_R_regime_K9_bis
-minimal_alpha_to_exit_R_regime_Kp_mean
-minimal_alpha_to_exit_R_regime_Kp_median
+# Summary table
+table_minimal_alpha_to_exit_R_regime <- 
+  minimal_alpha_to_exit_R_regime_K9_bis %>%
+  dplyr::rename(with_K_eq_9 = `mean(minimal_alpha_to_exit_R_regime)`) %>%
+  dplyr::mutate(with_plug_in_mean = 
+                  minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`,
+                with_plug_in_median =
+                  minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`)
 
-minimal_alpha_to_exit_R_regime_K9_bis$`mean(minimal_alpha_to_exit_R_regime)`
-minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`
-minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`
-
-# To copy-paste in Latex (then, keep three digits a la mano)
-paste0(minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`, collapse = " & ")
-paste0(minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`, collapse = " & ")
+# Table minimal alpha (one table only, not automated export to tex)
+table_minimal_alpha_to_exit_R_regime
 
 #==============================================================================#
-# Coverage ----------
+# Table: coverages -------------------------------------------------------------
 #==============================================================================#
 
 alpha_studied <- 0.1
 
+#' Get coverage of the CLT-CI, it is the same CLT-CI whatever
+#' the bound used: plug-in or bound, and whatever the optimization in a
+#' Therefore, we just select arbitrarily a combination to get the CLT-CI coverage.
+coverage_CLT <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(bound_K_method == "plug-in") %>%
+  dplyr::filter(optimized_a_is_used == FALSE) %>%
+  dplyr::filter(alpha == alpha_studied) %>%
+  dplyr::group_by(sample_size_n) %>%
+  dplyr::summarise(mean(coverage_CLT))
+
 # bound_K_method_studied <- "plug-in"
 bound_K_method_studied <- "bound"
 
-coverage <- 
-  res_over_n %>% 
-  dplyr::filter(bound_K_method == "plug-in") %>%
+coverage_wo_optim <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(bound_K_method == bound_K_method_studied) %>%
+  dplyr::filter(optimized_a_is_used == FALSE) %>%
   dplyr::filter(alpha == alpha_studied) %>%
   dplyr::group_by(sample_size_n) %>%
-  dplyr::summarise(mean(coverage), mean(coverage_CLT))
+  dplyr::summarise(mean(coverage))
 
-coverage
-coverage$`mean(coverage)`
-coverage$`mean(coverage_CLT)`
+coverage_wi_optim <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(bound_K_method == bound_K_method_studied) %>%
+  dplyr::filter(optimized_a_is_used == TRUE) %>%
+  dplyr::filter(alpha == alpha_studied) %>%
+  dplyr::group_by(sample_size_n) %>%
+  dplyr::summarise(mean(coverage))
 
-# To copy-paste in Latex (then, keep three digits a la mano)
-paste0(coverage$`mean(coverage)`, collapse = " & ")
-paste0(coverage$`mean(coverage_CLT)`, collapse = " & ")
+# Full table
+table_coverage <- coverage_CLT %>%
+  dplyr::mutate(cov_wo_optim = coverage_wo_optim$`mean(coverage)`,
+                cov_wi_optim = coverage_wi_optim$`mean(coverage)`) %>%
+  dplyr::rename(cov_clt = `mean(coverage_CLT)`)
+
+# To copy-paste in Latex (just one table to do... so not automated...)
+nb_digits = 3
+paste0(round(table_coverage$cov_clt, digits = nb_digits), collapse = " & ")
+paste0(round(table_coverage$cov_wo_optim, digits = nb_digits), collapse = " & ")
+paste0(round(table_coverage$cov_wi_optim, digits = nb_digits), collapse = " & ")
 
 #==============================================================================#
 # Graph absolute lengths -------------------------------------------------------
