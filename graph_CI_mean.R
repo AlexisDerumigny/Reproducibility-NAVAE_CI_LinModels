@@ -104,7 +104,7 @@ View(res_over_n)
 # For both w and wo optimization in a #
 #==============================================================================#
 
-# Separate the two cases
+# Separate the two cases and choose with or without optimization
 res_over_n_w_and_wo_optim_in_a <- res_over_n
 
 res_over_n <- res_over_n_w_and_wo_optim_in_a %>%
@@ -157,28 +157,49 @@ paste0(minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regi
 paste0(minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`, collapse = " & ")
 
 #==============================================================================#
-# Coverage ----------
+# Table: coverages -------------------------------------------------------------
 #==============================================================================#
 
 alpha_studied <- 0.1
 
+#' Get coverage of the CLT-CI, it is the same CLT-CI whatever
+#' the bound used: plug-in or bound, and whatever the optimization in a
+#' Therefore, we just select arbitrarily a combination to get the CLT-CI coverage.
+coverage_CLT <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(bound_K_method == "plug-in") %>%
+  dplyr::filter(optimized_a_is_used == FALSE) %>%
+  dplyr::filter(alpha == alpha_studied) %>%
+  dplyr::group_by(sample_size_n) %>%
+  dplyr::summarise(mean(coverage_CLT))
+
 # bound_K_method_studied <- "plug-in"
 bound_K_method_studied <- "bound"
 
-coverage <- 
-  res_over_n %>% 
-  dplyr::filter(bound_K_method == "plug-in") %>%
+coverage_wo_optim <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(bound_K_method == bound_K_method_studied) %>%
+  dplyr::filter(optimized_a_is_used == FALSE) %>%
   dplyr::filter(alpha == alpha_studied) %>%
   dplyr::group_by(sample_size_n) %>%
-  dplyr::summarise(mean(coverage), mean(coverage_CLT))
+  dplyr::summarise(mean(coverage))
 
-coverage
-coverage$`mean(coverage)`
-coverage$`mean(coverage_CLT)`
+coverage_wi_optim <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(bound_K_method == bound_K_method_studied) %>%
+  dplyr::filter(optimized_a_is_used == TRUE) %>%
+  dplyr::filter(alpha == alpha_studied) %>%
+  dplyr::group_by(sample_size_n) %>%
+  dplyr::summarise(mean(coverage))
 
-# To copy-paste in Latex (then, keep three digits a la mano)
-paste0(coverage$`mean(coverage)`, collapse = " & ")
-paste0(coverage$`mean(coverage_CLT)`, collapse = " & ")
+# Full table
+table_coverage <- coverage_CLT %>%
+  dplyr::mutate(cov_wo_optim = coverage_wo_optim$`mean(coverage)`,
+                cov_wi_optim = coverage_wi_optim$`mean(coverage)`) %>%
+  dplyr::rename(cov_clt = `mean(coverage_CLT)`)
+
+# To copy-paste in Latex (just one table to do... so not automated...)
+nb_digits = 3
+paste0(round(table_coverage$cov_clt, digits = nb_digits), collapse = " & ")
+paste0(round(table_coverage$cov_wo_optim, digits = nb_digits), collapse = " & ")
+paste0(round(table_coverage$cov_wi_optim, digits = nb_digits), collapse = " & ")
 
 #==============================================================================#
 # Graph absolute lengths -------------------------------------------------------
