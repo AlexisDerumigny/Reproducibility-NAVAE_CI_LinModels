@@ -136,7 +136,7 @@ minimal_alpha_to_exit_R_regime_K9_bis <- # just to check, but no variation acros
   dplyr::filter(bound_K_method == "bound") %>%
   dplyr::group_by(sample_size_n) %>%
   dplyr::summarise(mean(minimal_alpha_to_exit_R_regime))
-                   
+
 minimal_alpha_to_exit_R_regime_Kp_mean <- 
   res_over_n %>% 
   dplyr::filter(bound_K_method == "plug-in") %>%
@@ -164,6 +164,7 @@ table_minimal_alpha_to_exit_R_regime <-
 
 # Table minimal alpha (one table only, not automated export to tex)
 table_minimal_alpha_to_exit_R_regime
+
 
 #==============================================================================#
 # Table: coverages -------------------------------------------------------------
@@ -211,12 +212,15 @@ paste0(round(table_coverage$cov_wo_optim, digits = nb_digits), collapse = " & ")
 paste0(round(table_coverage$cov_wi_optim, digits = nb_digits), collapse = " & ")
 
 #==============================================================================#
-# Graph absolute lengths -------------------------------------------------------
+# Graph; absolute lengths with or wo optimization in a --------------------------
 #==============================================================================#
 
 alpha_studied <- 0.1
 # bound_K_method_studied <- "plug-in"
 bound_K_method_studied <- "bound"
+
+res_over_n <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(optimized_a_is_used == FALSE)
 
 # Without changing the Inf into NA (to be removed from the average)
 # the mean is thus Inf
@@ -259,7 +263,7 @@ df_absolute_length_K9 <-
   df_absolute_length_K9 %>% 
   pivot_longer(!n, names_to = "CI", 
                values_to = "Absolute_length")
-  
+
 g_abs_length_K9 <- ggplot(data = df_absolute_length_K9,
                           aes(x = n, y = Absolute_length, linetype = CI)) +
   geom_line() + 
@@ -267,7 +271,6 @@ g_abs_length_K9 <- ggplot(data = df_absolute_length_K9,
   ylab(paste0("CI length (mean over ", M, " repetitions)"))
 
 g_abs_length_K9
-
 
 
 g_abs_length_K9_for_latex <- ggplot(data = df_absolute_length_K9,
@@ -279,6 +282,71 @@ g_abs_length_K9_for_latex <- ggplot(data = df_absolute_length_K9,
 g_abs_length_K9_for_latex
 
 figure_filename <- paste0("fig_absolute_length",
+                          "_alpha_", alpha_studied,
+                          "_K_", bound_K_method_studied,
+                          "_b_", power_of_n_for_b,
+                          "_M_", M,
+                          ".pdf")
+pdf(file = file.path(path_figures, figure_filename), 
+    width = width_export_pdf_file, height = height_export_pdf_file)
+print(g_abs_length_K9_for_latex)
+dev.off()
+
+#==============================================================================#
+# Graph: absolute lengths with and wo optimization in a --------------------------
+#==============================================================================#
+
+alpha_studied <- 0.1
+
+# bound_K_method_studied <- "plug-in"
+bound_K_method_studied <- "bound"
+
+# Put Inf values as NA
+res_over_n_for_length <- res_over_n_w_and_wo_optim_in_a
+res_over_n_for_length$length_ci[which(is.infinite(res_over_n_for_length$length_ci))] <- NA
+
+res_over_n_for_length %>%
+  dplyr::filter(alpha == alpha_studied) %>%
+  dplyr::filter(bound_K_method == "bound")
+
+
+# Create the dataframe to be used for the plot
+df_absolute_length_K9 <-
+  res_over_n_for_length %>% 
+  dplyr::filter(alpha == alpha_studied) %>%
+  dplyr::filter(bound_K_method == "bound") %>%
+  dplyr::group_by(sample_size_n, optimized_a_is_used) %>%
+  dplyr::summarise(mean(length_ci, na.rm = TRUE), mean(length_ci_CLT))
+colnames(df_absolute_length_K9) <- c("n", "optimized_a", "Our", "CLT")
+df_absolute_length_K9 <- 
+  df_absolute_length_K9 %>% 
+  pivot_wider(names_from = optimized_a, values_from = c("Our", "CLT")) %>%
+  select(-CLT_TRUE) %>% # same values for CLT with or without 
+  rename(Our_wi_optim = Our_TRUE,
+         Our_wo_optim = Our_FALSE,
+         CLT = CLT_FALSE) %>%
+  pivot_longer(!n, names_to = "CI", 
+               values_to = "Absolute_length") 
+
+g_abs_length_K9 <- ggplot(data = df_absolute_length_K9,
+                          aes(x = n, y = Absolute_length, linetype = CI)) +
+  geom_line() + 
+  xlab("sample size") +
+  ylab(paste0("CI length (mean over ", M, " repetitions)"))
+
+g_abs_length_K9
+
+g_abs_length_K9_for_latex <- ggplot(data = df_absolute_length_K9,
+                                    aes(x = n, y = Absolute_length, 
+                                        color = CI, linetype = CI)) +
+  geom_line(alpha = 0.9, linewidth = 1) + xlab(element_blank()) + ylab(element_blank()) +
+  theme(legend.position = "none") +
+  theme(axis.text = element_text(size = size_theme_element_text)) +
+  scale_x_continuous(labels = label_number(scale = 1e-3, suffix = "k"))
+g_abs_length_K9_for_latex
+
+figure_filename <- paste0("fig_absolute_length",
+                          "_wi_and_wo_optim_in_a",
                           "_alpha_", alpha_studied,
                           "_K_", bound_K_method_studied,
                           "_b_", power_of_n_for_b,
