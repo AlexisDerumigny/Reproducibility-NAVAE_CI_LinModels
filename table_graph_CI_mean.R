@@ -115,8 +115,17 @@ res_over_n <- res_over_n_w_and_wo_optim_in_a %>%
 
 
 #==============================================================================#
-# Table: minimal alpha to exit R regime ----------
+# Table: minimal alpha to exit R regime ----------------------------------------
 #==============================================================================#
+
+#' Select with or without optimization.
+#' Rather without optimization is shown in the paper since the optimized a
+#' tries to minimize the width, which contradicts the objective of exiting 
+#' the R regime to be informative.
+
+optimized_a_is_used_studied <- FALSE
+res_over_n <- res_over_n_w_and_wo_optim_in_a %>%
+  dplyr::filter(optimized_a_is_used == optimized_a_is_used_studied)
 
 minimal_alpha_to_exit_R_regime_K9 <- 
   unique(res_over_n %>% 
@@ -144,17 +153,17 @@ minimal_alpha_to_exit_R_regime_Kp_median <-
 mean(c(1,2)) == mean(c(1, 1, 2, 2))
 median(c(1,2)) == median(c(1, 1, 2, 2))
 
-minimal_alpha_to_exit_R_regime_K9_bis
-minimal_alpha_to_exit_R_regime_Kp_mean
-minimal_alpha_to_exit_R_regime_Kp_median
+# Summary table
+table_minimal_alpha_to_exit_R_regime <- 
+  minimal_alpha_to_exit_R_regime_K9_bis %>%
+  dplyr::rename(with_K_eq_9 = `mean(minimal_alpha_to_exit_R_regime)`) %>%
+  dplyr::mutate(with_plug_in_mean = 
+                  minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`,
+                with_plug_in_median =
+                  minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`)
 
-minimal_alpha_to_exit_R_regime_K9_bis$`mean(minimal_alpha_to_exit_R_regime)`
-minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`
-minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`
-
-# To copy-paste in Latex (then, keep three digits a la mano)
-paste0(minimal_alpha_to_exit_R_regime_Kp_mean$`mean(minimal_alpha_to_exit_R_regime)`, collapse = " & ")
-paste0(minimal_alpha_to_exit_R_regime_Kp_median$`median(minimal_alpha_to_exit_R_regime)`, collapse = " & ")
+# Table minimal alpha (one table only, not automated export to tex)
+table_minimal_alpha_to_exit_R_regime
 
 #==============================================================================#
 # Table: coverages -------------------------------------------------------------
