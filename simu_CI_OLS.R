@@ -303,7 +303,7 @@ Perform_and_save_simu_across_n(vec_n = vec_n, S = S)
 
 # Load results over n
 # vec_n_to_load <- c(15, 25, 35, 50, 75, 99, 100, 150) * 10^3
-vec_n_to_load <- c(15, 25, 35, 50, 75, 100) * 10^3
+vec_n_to_load <- c(15, 25, 35, 50, 75, 100, 150) * 10^3
 res_over_n <- NULL
 for (n in vec_n_to_load) {
   res_one_n <- readRDS(file = file.path(path_res_simu_OLS,
@@ -319,26 +319,43 @@ rm(res_one_n)
 colnames(res_over_n)
 
 # Coverage
+
 coverage <- res_over_n %>%
   dplyr::group_by(sample_size_n) %>%
   dplyr::summarise(mean(coverage_navae_K9), mean(coverage_navae_Kh), mean(coverage_asymp))
+coverage
+
+# Proportion of R regime
+
+prop_R_regime <- res_over_n %>%
+  dplyr::group_by(sample_size_n) %>%
+  dplyr::summarise(mean(ci_navae_K9.regime != "Edg"),
+                   mean(ci_navae_Kh.regime != "Edg"))
+prop_R_regime
 
 # Length
+
+median_absolute_length <- res_over_n %>%
+  dplyr::group_by(sample_size_n) %>%
+  dplyr::summarise(median(length_navae_K9), median(length_navae_Kh), median(length_asymp))
+median_absolute_length
+
+mean_absolute_length <- res_over_n %>%
+  dplyr::group_by(sample_size_n) %>%
+  dplyr::summarise(mean(length_navae_K9), mean(length_navae_Kh), mean(length_asymp))
+mean_absolute_length
 
 median_ratio_length <- res_over_n %>%
   dplyr::group_by(sample_size_n) %>%
   dplyr::summarise(median(ratio_wrt_asymp_navae_K9), median(ratio_wrt_asymp_navae_Kh))
+median_ratio_length
 
-median_length <- res_over_n %>%
+mean_ratio_length <- res_over_n %>%
   dplyr::group_by(sample_size_n) %>%
-  dplyr::summarise(median(length_navae_K9), median(length_navae_Kh), median(length_asymp))
+  dplyr::summarise(mean(ratio_wrt_asymp_navae_K9), mean(ratio_wrt_asymp_navae_Kh))
+mean_ratio_length
 
-res_over_n %>%
-  dplyr::group_by(sample_size_n) %>%
-  dplyr::summarise(mean(ci_navae_K9.regime != "Edg"),
-                   mean(ci_navae_Kh.regime != "Edg"))
-
+# Just to check the behavior of the median with Inf, treated as a value itself, so can be Inf
+# if at least half the values are Inf.
 median(c(1,2,Inf,Inf))
 median(c(1,2, 3,Inf,Inf))
-
-
