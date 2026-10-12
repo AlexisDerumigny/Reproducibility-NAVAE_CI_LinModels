@@ -448,6 +448,17 @@ PB_objective <- function(par, n, K) {
   term_1 + term_2 + term_3
 }
 
+PB_vect <- function(x, y, n, K) {
+  (K - 1) / (sqrt(n) * x^2) +
+    4 * sqrt(K) / (sqrt(27) * y * sqrt(1 - y)) +
+    (
+      K^(3 / 4) +
+        sqrt(K - 1) *
+        (sqrt(K) + sqrt(3 + K / n))
+    ) / (
+      2 * y * (1 - x + sqrt(1 - x))
+    )
+}
 
 PB <- function(n, K, start = c(0, 0)) {
   stopifnot(
@@ -493,22 +504,30 @@ PB <- function(n, K, start = c(0, 0)) {
     )
   }
   
-  grid_size = 100
+  grid_size = 1000
 
   xy_grid <- expand.grid(
-    x = seq(0.001, 0.999, length.out = grid_size),
-    y = seq(0.001, 0.999, length.out = grid_size)
+    x = seq(0.00001, 0.99999, length.out = grid_size),
+    y = seq(0.00001, 0.99999, length.out = grid_size)
   )
 
-  xy_grid$PB <- apply(
-    xy_grid,
-    MARGIN = 1,
-    FUN = PB_objective,
+  # xy_grid$PB <- apply(
+  #   xy_grid,
+  #   MARGIN = 1,
+  #   FUN = PB_objective,
+  #   n = n,
+  #   K = K
+  # )
+  
+  xy_grid$PB <- PB_vect(
+    x = xy_grid$x,
+    y = xy_grid$y,
     n = n,
     K = K
   )
 
   minimum <- min(xy_grid$PB)
+  
   # 
   # minimum_row <- xy_grid[
   #   which.min(xy_grid$PB),
