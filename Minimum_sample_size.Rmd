@@ -1,0 +1,1006 @@
+---
+title: "Minimum sample sizes"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-10-12"
+params:
+  K: 9
+  alpha_values: !r c(0.10, 0.05, 0.01)
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+options(
+  digits = 15,
+  scipen = 999,
+  stringsAsFactors = FALSE
+)
+
+K <- params$K
+alpha_values <- params$alpha_values
+
+stopifnot(
+  length(K) == 1L,
+  is.finite(K),
+  K > 0,
+  all(is.finite(alpha_values)),
+  all(alpha_values > 0),
+  all(alpha_values < 1)
+)
+```
+
+
+```{r}
+try({
+## =====================================================================
+## Recompute Table 1
+## =====================================================================
+
+options(
+  digits = 15,
+  scipen = 999,
+  stringsAsFactors = FALSE
+)
+
+K <- 9
+alpha_values <- c(0.10, 0.05, 0.01)
+
+stopifnot(
+  length(K) == 1L,
+  is.finite(K),
+  K > 0,
+  all(is.finite(alpha_values)),
+  all(alpha_values > 0),
+  all(alpha_values < 1)
+)
+
+
+## =====================================================================
+## General utilities
+## =====================================================================
+
+safe_value <- function(f, ...) {
+  tryCatch(
+    {
+      value <- f(...)
+
+      if (length(value) != 1L || is.na(value) || !is.finite(value)) {
+        Inf
+      } else {
+        value
+      }
+    },
+    error = function(e) {
+      message("Evaluation error: ", conditionMessage(e))
+      Inf
+    },
+    warning = function(w) {
+      message("Evaluation warning: ", conditionMessage(w))
+      Inf
+    }
+  )
+}
+
+
+smallest_integer_strictly_above <- function(x, tol = 1e-9) {
+  stopifnot(
+    length(x) == 1L,
+    is.finite(x)
+  )
+
+  nearest_integer <- round(x)
+
+  if (abs(x - nearest_integer) <= tol * max(1, abs(x))) {
+    as.integer(nearest_integer + 1)
+  } else {
+    as.integer(floor(x) + 1)
+  }
+}
+
+
+first_true_integer <- function(condition,
+                               lower = 1L,
+                               upper = 2L,
+                               maximum = .Machine$integer.max) {
+  lower <- as.integer(lower)
+  upper <- as.integer(max(upper, lower))
+
+  is_true <- function(n) {
+    result <- tryCatch(
+      suppressWarnings(
+        condition(as.integer(n))
+      ),
+      error = function(e) {
+        message(
+          "Condition evaluation failed at n = ",
+          n,
+          ": ",
+          conditionMessage(e)
+        )
+
+        FALSE
+      }
+    )
+
+    isTRUE(result)
+  }
+
+  if (is_true(lower)) {
+    return(lower)
+  }
+
+  while (!is_true(upper)) {
+    if (upper >= maximum) {
+      stop("No finite threshold was found before `maximum`.")
+    }
+
+    lower <- upper
+
+    upper <- min(
+      maximum,
+      as.integer(2 * as.double(upper))
+    )
+  }
+
+  ## Invariant:
+  ## condition(lower) is FALSE
+  ## condition(upper) is TRUE
+
+  while (as.double(upper) - as.double(lower) > 1) {
+    middle <- as.integer(
+      floor(
+        (
+          as.double(lower) +
+            as.double(upper)
+        ) / 2
+      )
+    )
+
+    if (is_true(middle)) {
+      upper <- middle
+    } else {
+      lower <- middle
+    }
+  }
+
+  upper
+}
+
+
+## =====================================================================
+## Threshold for q1
+## =====================================================================
+
+U_value <- function(eta, a, alpha, K) {
+  2 * K *
+    (a / (a - 1))^2 *
+    log(1 / (alpha * eta))
+}
+
+
+V_value <- function(eta, a, alpha) {
+  2 * (1 + a) *
+    (
+      1 +
+        log(2 / (alpha * (1 - eta)))
+    )
+}
+
+
+eta_star_given_a <- function(a, alpha, K) {
+  stopifnot(
+    length(a) == 1L,
+    is.finite(a),
+    a > 1,
+    alpha > 0,
+    alpha < 1,
+    K > 0
+  )
+
+  difference <- function(eta) {
+    U_value(
+      eta = eta,
+      a = a,
+      alpha = alpha,
+      K = K
+    ) -
+      V_value(
+        eta = eta,
+        a = a,
+        alpha = alpha
+      )
+  }
+
+  ## Avoid machine-precision endpoints.
+  lower <- 1e-12
+  upper <- 1 - 1e-12
+
+  f_lower <- difference(lower)
+  f_upper <- difference(upper)
+
+  if (
+    is.finite(f_lower) &&
+    is.finite(f_upper) &&
+    sign(f_lower) != sign(f_upper)
+  ) {
+    return(
+      uniroot(
+        f = difference,
+        lower = lower,
+        upper = upper,
+        tol = 1e-12,
+        maxiter = 1000L
+      )$root
+    )
+  }
+
+  ## Fallback: directly minimize max(U, V).
+  objective <- function(logit_eta) {
+    eta <- plogis(logit_eta)
+
+    max(
+      U_value(
+        eta = eta,
+        a = a,
+        alpha = alpha,
+        K = K
+      ),
+      V_value(
+        eta = eta,
+        a = a,
+        alpha = alpha
+      )
+    )
+  }
+
+  fit <- optimize(
+    f = objective,
+    interval = c(-30, 30),
+    tol = 1e-12
+  )
+
+  plogis(fit$minimum)
+}
+
+
+N_given_log_a_minus_one <- function(s, alpha, K) {
+  ## Prevent exp(s) from overflowing.
+  if (!is.finite(s) || s > 700) {
+    return(Inf)
+  }
+
+  a_minus_one <- exp(s)
+
+  if (!is.finite(a_minus_one) || a_minus_one <= 0) {
+    return(Inf)
+  }
+
+  a <- 1 + a_minus_one
+
+  ## For very negative s, floating-point arithmetic may give a == 1.
+  if (!is.finite(a) || a <= 1) {
+    return(Inf)
+  }
+
+  eta <- eta_star_given_a(
+    a = a,
+    alpha = alpha,
+    K = K
+  )
+
+  result <- max(
+    U_value(
+      eta = eta,
+      a = a,
+      alpha = alpha,
+      K = K
+    ),
+    V_value(
+      eta = eta,
+      a = a,
+      alpha = alpha
+    )
+  )
+
+  if (length(result) != 1L || !is.finite(result)) {
+    Inf
+  } else {
+    result
+  }
+}
+
+N_star <- function(alpha, K, tol = 1e-10) {
+  objective <- function(s) {
+    N_given_log_a_minus_one(
+      s = s,
+      alpha = alpha,
+      K = K
+    )
+  }
+
+  ## a = 1 + exp(s).
+  ## The interval [-20, 20] covers a - 1 from approximately
+  ## 2e-9 to 4.9e8, which is much wider than needed here.
+  fit <- optimize(
+    f = objective,
+    interval = c(-20, 20),
+    tol = tol
+  )
+
+  if (!is.finite(fit$objective)) {
+    stop(
+      "Optimization of N_star failed for alpha = ",
+      alpha,
+      " and K = ",
+      K,
+      "."
+    )
+  }
+
+  s_star <- fit$minimum
+  a_star <- 1 + exp(s_star)
+
+  eta_star <- eta_star_given_a(
+    a = a_star,
+    alpha = alpha,
+    K = K
+  )
+
+  U_star <- U_value(
+    eta = eta_star,
+    a = a_star,
+    alpha = alpha,
+    K = K
+  )
+
+  V_star <- V_value(
+    eta = eta_star,
+    a = a_star,
+    alpha = alpha
+  )
+
+  list(
+    N_star = max(U_star, V_star),
+    a_star = a_star,
+    eta_star = eta_star,
+    U_star = U_star,
+    V_star = V_star,
+    balance_error = abs(U_star - V_star),
+    optimization_objective = fit$objective
+  )
+}
+
+
+n_star_q1 <- function(alpha, K) {
+  fit <- N_star(alpha, K)
+
+  c(
+    n = smallest_integer_strictly_above(fit$N_star),
+    N_star = fit$N_star,
+    a_star = fit$a_star,
+    eta_star = fit$eta_star,
+    balance_error = fit$balance_error
+  )
+}
+
+
+## =====================================================================
+## DGG bound
+## =====================================================================
+
+## Replace the body of this function by the updated DGG bound.
+##
+## It must return one finite, nonnegative numeric value.
+
+delta_DGG <- function(n, K) {
+  BoundEdgeworth::Bound_EE1(
+    n = n, K4 = K,
+    setup = list(continuity = FALSE, iid = TRUE, no_skewness = FALSE))
+}
+
+
+## Alternatively, place delta_DGG() in a separate file:
+##
+## source("delta_DGG.R")
+
+
+## =====================================================================
+## Shevtsova bound
+## =====================================================================
+
+delta_S <- function(n, K) {
+  stopifnot(
+    length(n) == 1L,
+    n > 0,
+    length(K) == 1L,
+    K > 0
+  )
+
+  K_three_quarters <- K^(3 / 4)
+
+  min(
+    0.3031 * (K_three_quarters + 0.646) / sqrt(n),
+    0.3322 * (K_three_quarters + 0.429) / sqrt(n),
+    0.33554 * (K_three_quarters + 0.415) / sqrt(n),
+    0.469 * K_three_quarters / sqrt(n)
+  )
+}
+
+
+## =====================================================================
+## PB(n, K)
+## =====================================================================
+
+PB_objective <- function(par, n, K) {
+  x <- plogis(par[1L])
+  y <- plogis(par[2L])
+
+  term_1 <- (K - 1) / (sqrt(n) * x^2)
+
+  term_2 <- 4 * sqrt(K) / ( sqrt(27) * y * sqrt(1 - y) )
+
+  term_3 <- ( K^(3 / 4) + sqrt(K - 1) * (sqrt(K) + sqrt(3 + K / n))
+  ) / ( 2 * y * ( 1 - x + sqrt(1 - x) ) )
+
+  term_1 + term_2 + term_3
+}
+
+
+PB <- function(n, K, start = c(0, 0)) {
+  stopifnot(
+    length(n) == 1L,
+    n > 0,
+    length(K) == 1L,
+    K >= 1
+  )
+
+  fit <- optim(
+    par = start,
+    fn = PB_objective,
+    n = n,
+    K = K,
+    method = "BFGS",
+    control = list(
+      reltol = 1e-12,
+      maxit = 2000L
+    )
+  )
+
+  if (fit$convergence != 0L || !is.finite(fit$value)) {
+    fit <- optim(
+      par = start,
+      fn = PB_objective,
+      n = n,
+      K = K,
+      method = "Nelder-Mead",
+      control = list(
+        reltol = 1e-12,
+        maxit = 10000L
+      )
+    )
+  }
+
+  if (fit$convergence != 0L || !is.finite(fit$value)) {
+    stop(
+      "Optimization of PB(n, K) failed for n = ",
+      n,
+      " and K = ",
+      K,
+      "."
+    )
+  }
+  
+  grid_size = 100
+
+  xy_grid <- expand.grid(
+    x = seq(0.001, 0.999, length.out = grid_size),
+    y = seq(0.001, 0.999, length.out = grid_size)
+  )
+
+  xy_grid$PB <- apply(
+    xy_grid,
+    MARGIN = 1,
+    FUN = PB_objective,
+    n = n,
+    K = K
+  )
+
+  minimum <- min(xy_grid$PB)
+  # 
+  # minimum_row <- xy_grid[
+  #   which.min(xy_grid$PB),
+  #   ,
+  #   drop = FALSE
+  # ]
+  # 
+  # list(
+  #   minimum = minimum,
+  #   minimizer = minimum_row,
+  #   grid = xy_grid
+  # )
+
+  min(fit$value, minimum)
+}
+
+
+## =====================================================================
+## Threshold for q2
+## =====================================================================
+
+qtilde_2 <- function(a, alpha, n, K) {
+  if (!is.finite(a) || a <= 1) {
+    return(Inf)
+  }
+
+  remainder <- exp(-n * (1 - 1 / a)^2 / (2 * K)) / 2
+
+  probability <- 1 - alpha / 2 +
+    min(delta_DGG(n, K), delta_S(n, K)) +
+    remainder
+
+  if (
+    !is.finite(probability) ||
+      probability <= 0 ||
+      probability >= 1
+  ) {
+    return(Inf)
+  }
+
+  sqrt(a) * qnorm(probability)
+}
+
+
+minimum_qtilde_2 <- function(alpha, n, K) {
+  objective <- function(s) {
+    a <- 1 + exp(s)
+
+    result <- suppressWarnings(
+      qtilde_2(
+        a = a,
+        alpha = alpha,
+        n = n,
+        K = K
+      )
+    )
+
+    if (
+      length(result) != 1L ||
+        is.na(result) ||
+        !is.finite(result)
+    ) {
+      return(Inf)
+    }
+
+    result
+  }
+
+  ## Search over a = 1 + exp(s).
+  ## This is only used to find the finite region and a suitable
+  ## interval for the subsequent one-dimensional optimization.
+  s_grid <- seq(
+    from = -20,
+    to = 20,
+    length.out = 401L
+  )
+
+  objective_grid <- vapply(
+    s_grid,
+    objective,
+    numeric(1L)
+  )
+
+  finite_indices <- which(is.finite(objective_grid))
+
+  if (length(finite_indices) == 0L) {
+    return(Inf)
+  }
+
+  ## Grid point with the smallest finite objective.
+  best_index <- finite_indices[
+    which.min(objective_grid[finite_indices])
+  ]
+
+  ## Construct a local interval around the best grid point.
+  left_index <- max(1L, best_index - 2L)
+  right_index <- min(length(s_grid), best_index + 2L)
+
+  lower <- s_grid[left_index]
+  upper <- s_grid[right_index]
+
+  ## optimize() may evaluate points where the objective is infinite.
+  ## That is legitimate, so its corresponding warning is suppressed.
+  fit <- suppressWarnings(
+    optimize(
+      f = objective,
+      interval = c(lower, upper),
+      tol = 1e-10
+    )
+  )
+
+  candidates <- c(
+    objective_grid[best_index],
+    objective(lower),
+    objective(upper),
+    fit$objective
+  )
+
+  candidates <- candidates[is.finite(candidates)]
+
+  if (length(candidates) == 0L) {
+    Inf
+  } else {
+    min(candidates)
+  }
+}
+
+
+q2_is_finite <- function(alpha, n, K) {
+  minimum <- minimum_qtilde_2(
+    alpha = alpha,
+    n = n,
+    K = K
+  )
+
+  is.finite(minimum) &&
+    minimum < sqrt(n)
+}
+
+
+n_star_q2 <- function(alpha, K) {
+  first_true_integer(
+    condition = function(n) {
+      q2_is_finite(
+        alpha = alpha,
+        n = n,
+        K = K
+      )
+    },
+    lower = 1L,
+    upper = 128L
+  )
+}
+
+
+## =====================================================================
+## Threshold for q3
+## =====================================================================
+
+r_nK <- function(n, K) {
+  PB(n, K) / sqrt(n) +
+    min(
+      delta_DGG(n, K) +
+        0.092 * K^(3 / 4) / sqrt(n),
+      delta_S(n, K)
+    )
+}
+
+
+qtilde_3 <- function(alpha, n, K) {
+  probability <- 1 - alpha / 2 +
+    r_nK(n, K)
+
+  if (
+    !is.finite(probability) ||
+      probability <= 0 ||
+      probability >= 1
+  ) {
+    return(Inf)
+  }
+
+  qnorm(probability)
+}
+
+
+q3_is_finite <- function(alpha, n, K) {
+  value <- qtilde_3(
+    alpha = alpha,
+    n = n,
+    K = K
+  )
+
+  is.finite(value) &&
+    value < sqrt(n)
+}
+
+
+n_star_q3 <- function(alpha, K) {
+  first_true_integer(
+    condition = function(n) {
+      q3_is_finite(
+        alpha = alpha,
+        n = n,
+        K = K
+      )
+    },
+    lower = 1L,
+    upper = 1024L
+  )
+}
+
+
+## =====================================================================
+## Threshold for q4
+## =====================================================================
+
+qtilde_4 <- function(alpha, n, K) {
+  probability <- 1 - alpha / 2 +
+    25 * K^(3 / 4) / sqrt(n)
+
+  if (
+    !is.finite(probability) ||
+      probability <= 0 ||
+      probability >= 1
+  ) {
+    return(Inf)
+  }
+
+  qnorm(probability)
+}
+
+
+q4_is_finite <- function(alpha, n, K) {
+  value <- qtilde_4(
+    alpha = alpha,
+    n = n,
+    K = K
+  )
+
+  is.finite(value) &&
+    value < sqrt(n)
+}
+
+
+n_star_q4 <- function(alpha, K) {
+  first_true_integer(
+    condition = function(n) {
+      q4_is_finite(
+        alpha = alpha,
+        n = n,
+        K = K
+      )
+    },
+    lower = 1L,
+    upper = 1024L
+  )
+}
+
+
+## =====================================================================
+## Compute Table 1
+## =====================================================================
+
+q1_details <- lapply(
+  alpha_values,
+  n_star_q1,
+  K = K
+)
+
+q1_thresholds <- vapply(
+  q1_details,
+  function(x) {
+    unname(x["n"])
+  },
+  numeric(1L)
+)
+
+q2_thresholds <- vapply(
+  alpha_values,
+  n_star_q2,
+  K = K,
+  FUN.VALUE = integer(1L)
+)
+
+q3_thresholds <- vapply(
+  alpha_values,
+  n_star_q3,
+  K = K,
+  FUN.VALUE = integer(1L)
+)
+
+q4_thresholds <- vapply(
+  alpha_values,
+  n_star_q4,
+  K = K,
+  FUN.VALUE = integer(1L)
+)
+
+table_1 <- data.frame(
+  alpha_percent = 100 * alpha_values,
+  q1 = as.integer(q1_thresholds),
+  q2 = as.integer(q2_thresholds),
+  q3 = as.integer(q3_thresholds),
+  q4 = as.integer(q4_thresholds),
+  check.names = FALSE
+)
+
+names(table_1) <- c(
+  "alpha_percent",
+  "q1_finite",
+  "q2_finite",
+  "q3_finite",
+  "q4_finite"
+)
+
+print(
+  table_1,
+  row.names = FALSE
+)
+
+
+## =====================================================================
+## Consistency checks
+## =====================================================================
+
+check_integer_threshold <- function(n_star, condition, name) {
+  if (!isTRUE(condition(n_star))) {
+    stop(
+      name,
+      " is not finite at the reported threshold n = ",
+      n_star,
+      "."
+    )
+  }
+
+  if (
+    n_star > 1L &&
+      isTRUE(condition(n_star - 1L))
+  ) {
+    stop(
+      name,
+      " is already finite at n = ",
+      n_star - 1L,
+      "."
+    )
+  }
+
+  invisible(TRUE)
+}
+
+
+for (j in seq_along(alpha_values)) {
+  alpha <- alpha_values[j]
+
+  ## q1 check
+  q1_fit <- q1_details[[j]]
+  n1 <- as.integer(q1_fit["n"])
+  N1 <- unname(q1_fit["N_star"])
+
+  stopifnot(
+    n1 > N1,
+    n1 - 1 <= N1,
+    unname(q1_fit["balance_error"]) < 1e-6
+  )
+
+  ## q2 check
+  check_integer_threshold(
+    n_star = q2_thresholds[j],
+    condition = function(n) {
+      q2_is_finite(alpha, n, K)
+    },
+    name = paste0("q2, alpha = ", alpha)
+  )
+
+  ## q3 check
+  check_integer_threshold(
+    n_star = q3_thresholds[j],
+    condition = function(n) {
+      q3_is_finite(alpha, n, K)
+    },
+    name = paste0("q3, alpha = ", alpha)
+  )
+
+  ## q4 check
+  check_integer_threshold(
+    n_star = q4_thresholds[j],
+    condition = function(n) {
+      q4_is_finite(alpha, n, K)
+    },
+    name = paste0("q4, alpha = ", alpha)
+  )
+}
+
+
+## =====================================================================
+## Numerical diagnostics for q1
+## =====================================================================
+
+q1_diagnostics <- data.frame(
+  alpha = alpha_values,
+
+  N_star = vapply(
+    q1_details,
+    function(x) unname(x["N_star"]),
+    numeric(1L)
+  ),
+
+  n_star = as.integer(q1_thresholds),
+
+  a_star = vapply(
+    q1_details,
+    function(x) unname(x["a_star"]),
+    numeric(1L)
+  ),
+
+  eta_star = vapply(
+    q1_details,
+    function(x) unname(x["eta_star"]),
+    numeric(1L)
+  ),
+
+  balance_error = vapply(
+    q1_details,
+    function(x) unname(x["balance_error"]),
+    numeric(1L)
+  )
+)
+
+print(
+  q1_diagnostics,
+  row.names = FALSE
+)
+
+})
+```
+
+
+
+```{r}
+try({
+## =====================================================================
+## Optional exports
+## =====================================================================
+
+write.csv(
+  table_1,
+  file = "table_1.csv",
+  row.names = FALSE
+)
+
+write.csv(
+  q1_diagnostics,
+  file = "table_1_q1_diagnostics.csv",
+  row.names = FALSE
+)
+
+
+## Optional LaTeX output if knitr is installed
+if (requireNamespace("knitr", quietly = TRUE)) {
+  print(
+    knitr::kable(
+      table_1,
+      format = "latex",
+      booktabs = TRUE,
+      format.args = list(
+        big.mark = ",",
+        scientific = FALSE
+      ),
+      align = rep("r", 5L),
+      col.names = c(
+        "$\\alpha$ (\\%)",
+        "$q_{1,\\alpha}<\\infty$",
+        "$q_{2,\\alpha}<\\infty$",
+        "$q_{3,\\alpha}<\\infty$",
+        "$q_{4,\\alpha}<\\infty$"
+      ),
+      caption = paste0(
+        "Minimum sample size after which ",
+        "$q_{\\ell,\\alpha}$ is finite ",
+        "($\\ell\\in\\{1,2,3,4\\}$). ",
+        "We use the bound $K=",
+        format(K, trim = TRUE),
+        "$."
+      ),
+      label = "min_sample_size",
+      escape = FALSE
+    )
+  )
+}
+
+})
+```
+
+
+
