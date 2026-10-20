@@ -689,23 +689,15 @@ n_star_q2 <- function(alpha, K) {
 
 r_nK <- function(n, K) {
   PB(n, K) / sqrt(n) +
-    min(
-      delta_DGG(n, K) +
-        0.092 * K^(3 / 4) / sqrt(n),
-      delta_S(n, K)
-    )
+    min(delta_DGG(n, K) + 0.092 * K^(3 / 4) / sqrt(n),
+        delta_S(n, K) )
 }
 
 
 qtilde_3 <- function(alpha, n, K) {
-  probability <- 1 - alpha / 2 +
-    r_nK(n, K)
+  probability <- 1 - alpha / 2 + r_nK(n, K)
 
-  if (
-    !is.finite(probability) ||
-      probability <= 0 ||
-      probability >= 1
-  ) {
+  if (!is.finite(probability) || probability <= 0 || probability >= 1) {
     return(Inf)
   }
 
@@ -714,24 +706,16 @@ qtilde_3 <- function(alpha, n, K) {
 
 
 q3_is_finite <- function(alpha, n, K) {
-  value <- qtilde_3(
-    alpha = alpha,
-    n = n,
-    K = K
-  )
+  value <- qtilde_3(alpha = alpha, n = n, K = K)
 
-  is.finite(value) &&
-    value < sqrt(n)
+  is.finite(value) && value < sqrt(n)
 }
 
 
 n_star_q3 <- function(alpha, K) {
   first_true_integer(
     condition = function(n) {
-      q3_is_finite(
-        alpha = alpha,
-        n = n,
-        K = K
+      q3_is_finite(alpha = alpha, n = n, K = K
       )
     },
     lower = 1L,
